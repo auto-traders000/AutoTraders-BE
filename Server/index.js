@@ -5,8 +5,7 @@ const cors = require("cors");
 
 // Local Imports
 const Database = require('../Database');
-// const Router = require('../routes');
-// const logger = require('../middlewares/loggers.middleware');
+const Router = require('../Route');
 
 // Constants
 const { port } = require('../config/index');
@@ -31,9 +30,9 @@ class Server {
         Database.connect();
 
         //Routes
-        // const routes = Router.getRoutes(server);
+        const routes = Router.getRoutes(server);
 
-        // server.use('/', routes);
+        server.use('/', routes);
 
         const httpServer = server.listen(port, ()=>{
             console.log(`App is running on port ${port}.`);

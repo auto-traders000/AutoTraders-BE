@@ -35,7 +35,7 @@ class Server {
         server.use('/', routes);
 
         const httpServer = server.listen(port, ()=>{
-            console.log(`App is running on port ${port}.`);
+            console.log(`App is running on port ${process.env.BASE_URL}.`);
         });
     }
 }

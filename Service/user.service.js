@@ -9,27 +9,103 @@ const generateOTP = require('../middlewares/otp.middleware.js');
 // local import
 
 module.exports = class {
-    static create = async (firstName, lastName, password, email) => {
-        try {
 
+    static otpRequest = async (email) => {
+        const user = await prisma.user.findUnique({
+            where: { email },
+        });
+
+        const { otp_code, expirationTime } = generateOTP();
+
+        if (!user) {
+            await prisma.user.create({
+                data: {
+                    email,
+                    otpCode: otp_code,
+                    otpExpiry: new Date(expirationTime),
+                },
+            });
+        } else {
+            await prisma.user.update({
+                where: { email },
+                data: {
+                    otpCode: otp_code,
+                    otpExpiry: new Date(expirationTime),
+                },
+            });
+        }
+
+        // Send OTP via email
+        const mailResult = await sendMail({
+            to: email,
+            OTP: otp_code,
+        });
+
+        return mailResult ? true : false;
+    };
+
+    static otpResend = async (email) => {
+        const user = await prisma.user.findUnique({
+            where: { email },
+        });
+
+        if (!user) {
+            return false;
+        }
+
+        const { otp_code, expirationTime } = generateOTP();
+
+        await prisma.user.update({
+            where: { email },
+            data: {
+                otpCode: otp_code,
+                otpExpiry: new Date(expirationTime),
+            },
+        });
+
+        // Send OTP via email
+        const mailResult = await sendMail({
+            to: email,
+            OTP: otp_code,
+        });
+
+        return mailResult ? true : false;
+    };
+
+    static create = async (email, otp, firstName, lastName, password) => {
+        try {
             const existingUser = await prisma.user.findUnique({
                 where: { email },
             });
 
-            if (existingUser) return false;
+            console.log("exi", existingUser);
+            console.log("otp", otp);
 
-            const result = await prisma.user.create({
+            if (!existingUser) {
+                return "User does not exist.";
+            }
+
+            if (existingUser.otpCode !== otp) {
+                return "Invalid OTP code.";
+            }
+
+            if (new Date() > existingUser.otpExpiry) {
+                return "OTP has expired.";
+            }
+
+            const result = await prisma.user.update({
+                where: { email },
                 data: {
                     firstName,
                     lastName,
-                    email,
                     password,
                 },
             });
 
+            console.log("result-->", result);
             return result || false;
         } catch (error) {
-            console.log(error);
+            console.log("exception:", error);
             return false;
         }
     };
@@ -107,23 +183,21 @@ module.exports = class {
         return mailResult ? true : false;
     };
 
-    static password = async (otp, password, userId) => {
+    static password = async (otp, password) => {
         try {
             const user = await prisma.user.findFirst({
                 where: { otpCode: otp },
             });
-
             if (!user) return false;
 
             const result = await prisma.user.update({
-                where: { id: userId },
                 data: {
                     password: password,
                     otpCode: null,
                     otpExpiry: null,
                 },
             });
-
+            console.log("-->3", result);
             if (result) return result;
             else return false;
         } catch (error) {

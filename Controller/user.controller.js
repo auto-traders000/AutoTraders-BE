@@ -4,8 +4,41 @@ const securePassword = require('../middlewares/auth.middleware');
 const userService = require('../Service/user.service');
 
 module.exports = class {
+
+    static async requestOtp(req, res) {
+        const { email } = req.body;
+
+        try {
+            const result = await userService.otpRequest(email);
+            if (result) {
+                return res.status(200).json({ message: "OTP sent to email successfully." });
+            } else {
+                return res.status(404).json({ message: "Email does not exist." });
+            }
+        } catch (error) {
+            return res.status(500).json({ message: "Something went wrong.", error });
+        }
+    }
+
+    static async resendOtp(req, res) {
+        const { email } = req.body;
+
+        try {
+            const result = await userService.otpResend(email);
+            if (result) {
+                return res.status(200).json({ message: "OTP sent to email successfully." });
+            } else {
+                return res.status(404).json({ message: "Email does not exist." });
+            }
+        } catch (error) {
+            return res.status(500).json({ message: "Something went wrong.", error });
+        }
+    }
+
+
     static async create(req, res) {
-        const { firstName, lastName, password, confirmPassword, email } = req.body;
+
+        const { email, otp, firstName, lastName, password, confirmPassword } = req.body;
 
         if (password !== confirmPassword) {
             console.error('Password and confirmPassword do not match');
@@ -14,7 +47,7 @@ module.exports = class {
 
         const hashedPassword = await securePassword(password);
         try {
-            const result = await userService.create(firstName, lastName, hashedPassword, email);
+            const result = await userService.create(email, otp, firstName, lastName, hashedPassword);
 
             return res.status(200).json({ message: "Success", result });
 
@@ -83,8 +116,8 @@ module.exports = class {
     }
 
     static async resetPassword(req, res) {
-        const userId = req.userId;
         const { otp, password, confirmPassword } = req.body;
+
 
         if (!password || !confirmPassword) {
             return res.status(400).json({ message: "Password and Confirm Password are required." });
@@ -100,7 +133,7 @@ module.exports = class {
 
         try {
             const hashedPassword = await securePassword(password);
-            const result = await userService.password(otp, hashedPassword, userId);
+            const result = await userService.password(otp, hashedPassword);
             if (result) {
                 return res.status(200).json({ message: "Password reset Successfully.", result });
             } else {
